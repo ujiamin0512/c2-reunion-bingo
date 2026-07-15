@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: linear-gradient(160deg, #FFF8E7 0%, #FFF0C8 50%, #FFE8A0 100%);
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+}
+
+@layer utilities {
+  .cream-bg {
+    background: linear-gradient(160deg, #FFF8E7 0%, #FFF0C8 50%, #FFE8A0 100%);
+  }
+
+  .orange-gradient {
+    background: linear-gradient(135deg, #F59E0B 0%, #F97316 100%);
+  }
+
+  .orange-gradient-disabled {
+    background: linear-gradient(135deg, #FCD68A 0%, #FDBA74 100%);
+  }
+
+  .card-shadow {
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
+  }
+
+  .tile-shadow {
+    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.2);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+}
+
+/* Scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
