@@ -62,7 +62,7 @@ export default function LandingPage() {
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <img
-            src="/new-logo.png"
+            src="/logo.jpeg"
             alt="10th Anniversary Reunion"
             className="w-full h-full object-cover"
             onError={e => {

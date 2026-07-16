@@ -66,7 +66,7 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
         className={`aspect-square rounded-2xl orange-gradient flex items-center justify-center relative overflow-hidden tile-shadow p-2 ${isHighlighted ? 'ring-4 ring-green-400' : ''}`}
         whileTap={{ scale: 0.95 }}
       >
-        <img src="/new-logo.png" alt="Free" className="w-full h-full object-contain" />
+        <img src="/logo.jpeg" alt="Free" className="w-full h-full object-contain" />
         {isHighlighted && (
           <motion.div
             className="absolute inset-0 bg-green-400/20 rounded-2xl"

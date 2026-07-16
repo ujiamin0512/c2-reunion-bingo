@@ -164,7 +164,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   {isFree ? (
-                    <img src="/new-logo.png" alt="Free" className="w-full h-full object-contain" />
+                    <img src="/logo.jpeg" alt="Free" className="w-full h-full object-contain" />
                   ) : sub?.image_url ? (
                     <img src={sub.image_url} alt="" className="w-full h-full object-cover" />
                   ) : (
