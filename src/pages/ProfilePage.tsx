@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas-pro'
 import { Download } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import { getParticipant, getTasks, getSubmissions, checkBingo, REQUIRED_LINES } from '../lib/db'
+import { saveCanvasAsImage } from '../lib/shareImage'
 import type { Participant, Task, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -42,10 +43,7 @@ export default function ProfilePage() {
         useCORS: true,
         backgroundColor: '#FFF8E7',
       })
-      const link = document.createElement('a')
-      link.download = `bingo-${participant?.name || 'card'}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      await saveCanvasAsImage(canvas, `bingo-${participant?.name || 'card'}.png`)
     } catch (e) {
       console.error(e)
       alert('保存图片失败，请重试')

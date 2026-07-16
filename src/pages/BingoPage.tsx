@@ -7,6 +7,7 @@ import { Download, Send } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import BingoTile from '../components/BingoTile'
 import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES } from '../lib/db'
+import { saveCanvasAsImage } from '../lib/shareImage'
 import type { Participant, Task, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -94,10 +95,7 @@ export default function BingoPage() {
         useCORS: true,
         backgroundColor: '#FFF8E7',
       })
-      const link = document.createElement('a')
-      link.download = `bingo-${participant?.name || 'card'}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      await saveCanvasAsImage(canvas, `bingo-${participant?.name || 'card'}.png`)
     } catch (e) {
       console.error(e)
       alert('下载图片失败，请重试')
