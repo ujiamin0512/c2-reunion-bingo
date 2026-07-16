@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getParticipant, getSubmissions, checkBingo } from '../lib/db'
+import { getParticipant, getSubmissions, checkBingo, REQUIRED_LINES } from '../lib/db'
 import type { Participant, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -85,7 +85,7 @@ export default function WelcomePage() {
         <div className="bg-white/80 rounded-3xl p-5 card-shadow space-y-3">
           <div className="flex justify-between items-center">
             <span className="font-semibold text-amber-800">Bingo进度</span>
-            <span className="text-amber-500 font-bold">{bingoLines.length} / 3 条</span>
+            <span className="text-amber-500 font-bold">{bingoLines.length} / {REQUIRED_LINES} 条</span>
           </div>
           <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
             <motion.div
@@ -107,7 +107,7 @@ export default function WelcomePage() {
           ◎ &nbsp;继续游戏 →
         </motion.button>
 
-        <p className="text-center text-amber-500 text-sm">完成3条Bingo线即可完成挑战！🎯</p>
+        <p className="text-center text-amber-500 text-sm">完成{REQUIRED_LINES}条Bingo线即可完成挑战！🎯</p>
 
         <button
           onClick={handleLogout}

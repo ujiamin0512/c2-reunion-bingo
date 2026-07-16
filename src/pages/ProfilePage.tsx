@@ -4,14 +4,13 @@ import { motion } from 'framer-motion'
 import html2canvas from 'html2canvas-pro'
 import { Download } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
-import { getParticipant, getTasks, getSubmissions, checkBingo } from '../lib/db'
+import { getParticipant, getTasks, getSubmissions, checkBingo, REQUIRED_LINES } from '../lib/db'
 import type { Participant, Task, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
 const BOARD_SIZE = 3
 const TOTAL = BOARD_SIZE * BOARD_SIZE
 const FREE_INDEX = Math.floor(TOTAL / 2)
-const REQUIRED_LINES = 3
 
 export default function ProfilePage() {
   const navigate = useNavigate()

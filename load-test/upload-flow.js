@@ -8,6 +8,11 @@
 // Run:
 //   SMOKE_TEST=true k6 run load-test/upload-flow.js   (quick correctness check, ~1m)
 //   k6 run load-test/upload-flow.js                   (full ramp+spike scenarios)
+//
+// uploadPhoto() mirrors uploadImage()'s retry/backoff logic in src/lib/db.ts
+// exactly (jitter before first attempt, exponential backoff + jitter between
+// retries, up to 4 attempts) so this measures what a real user actually
+// experiences post-fix, not the raw one-shot Storage API.
 
 import http from 'k6/http'
 import { check, sleep } from 'k6'
@@ -21,13 +26,16 @@ import {
   randomParticipant,
 } from './lib/config.js'
 
-const uploadDuration = new Trend('photo_upload_duration', true)
-const uploadErrors = new Rate('photo_upload_errors')
+const uploadDuration = new Trend('photo_upload_duration', true) // total time incl. retries, matches user-perceived latency
+const uploadErrors = new Rate('photo_upload_errors') // failed even after all retries
+const uploadFirstAttemptErrors = new Rate('photo_upload_first_attempt_errors') // raw one-shot failure rate, for comparison
+const uploadRetriesUsed = new Trend('photo_upload_retries_used', false)
 const submissionWriteDuration = new Trend('submission_write_duration', true)
 const submissionWriteErrors = new Rate('submission_write_errors')
 const journeyDuration = new Trend('full_journey_duration', true)
 
 const TASK_COUNT = 8 // matches the 3x3 board (8 tasks + 1 free center tile)
+const UPLOAD_MAX_ATTEMPTS = 4
 
 const SMOKE_TEST = __ENV.SMOKE_TEST === 'true'
 const TARGET_VUS = Number(__ENV.TARGET_VUS) || 500
@@ -96,14 +104,32 @@ function getTasks() {
 
 function uploadPhoto(participantId, taskId) {
   const path = `submissions/${participantId}/${taskId}.jpg`
-  const res = http.post(
-    `${STORAGE_URL}/object/bingo-images/${path}`,
-    samplePhoto,
-    { headers: storageHeaders('image/jpeg'), tags: { name: 'storage_upload' } }
-  )
-  uploadDuration.add(res.timings.duration)
+  const start = Date.now()
+
+  // Jitter before the first attempt, same as the app — spreads out
+  // simultaneous uploads instead of every client hitting Storage at once.
+  sleep(Math.random() * 0.6)
+
+  let res
+  let attempt = 0
+  for (; attempt < UPLOAD_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      const backoff = Math.min(1 * 2 ** (attempt - 1), 8)
+      sleep(backoff + Math.random() * 0.5)
+    }
+    res = http.post(
+      `${STORAGE_URL}/object/bingo-images/${path}`,
+      samplePhoto,
+      { headers: storageHeaders('image/jpeg'), tags: { name: 'storage_upload' } }
+    )
+    if (attempt === 0) uploadFirstAttemptErrors.add(res.status !== 200)
+    if (res.status === 200) break
+  }
+
+  uploadDuration.add(Date.now() - start)
+  uploadRetriesUsed.add(attempt)
   uploadErrors.add(res.status !== 200)
-  check(res, { 'storage upload 200': (r) => r.status === 200 })
+  check(res, { 'storage upload 200 (after retries)': (r) => r.status === 200 })
   if (res.status !== 200) return null
 
   const publicUrl = `${STORAGE_URL}/object/public/bingo-images/${path}`

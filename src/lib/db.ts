@@ -343,6 +343,12 @@ async function compressImage(file: File, maxPx = 1080): Promise<Blob> {
 }
 
 // ─── Bingo logic ──────────────────────────────────────────────────────────────
+// A 3x3 board has exactly 8 possible lines (3 rows + 3 cols + 2 diagonals), so
+// requiring all 8 means the whole board (all 8 non-free tiles) must be done —
+// single source of truth so every page's "progress" display and win-state
+// check agree with each other.
+export const REQUIRED_LINES = 8
+
 export function checkBingo(completedIndices: Set<number>, size: number): number[][] {
   const lines: number[][] = []
 

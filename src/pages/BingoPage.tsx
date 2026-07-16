@@ -6,7 +6,7 @@ import html2canvas from 'html2canvas-pro'
 import { Download, Send } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import BingoTile from '../components/BingoTile'
-import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant } from '../lib/db'
+import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES } from '../lib/db'
 import type { Participant, Task, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -173,7 +173,7 @@ export default function BingoPage() {
       <div className="mx-5 bg-white/80 rounded-2xl p-4 card-shadow mb-4">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-semibold text-amber-800">Bingo进度</span>
-          <span className="text-amber-500 font-bold text-sm">{bingoLines.length} / 3 条</span>
+          <span className="text-amber-500 font-bold text-sm">{bingoLines.length} / {REQUIRED_LINES} 条</span>
         </div>
         <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
           <motion.div
@@ -205,7 +205,7 @@ export default function BingoPage() {
         </div>
       </div>
 
-      <p className="text-center text-amber-400 text-xs mt-4 mb-2">完成3条Bingo线即可完成挑战！🎯</p>
+      <p className="text-center text-amber-400 text-xs mt-4 mb-2">完成{REQUIRED_LINES}条Bingo线即可完成挑战！🎯</p>
 
       {/* Submit */}
       <div className="px-5 mt-2">

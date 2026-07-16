@@ -10,7 +10,7 @@ import {
   getAllParticipants, getAllTasks, getAllSubmissions,
   createParticipant, updateParticipant, deleteParticipant,
   createTask, updateTask, deleteTask,
-  updateSubmissionStatus, checkBingo, getTasks, shuffle
+  updateSubmissionStatus, checkBingo, getTasks, shuffle, REQUIRED_LINES
 } from '../lib/db'
 import type { Participant, Task, Submission, BoardSize, Identity } from '../types'
 
@@ -19,7 +19,6 @@ type AdminTab = 'participants' | 'tasks' | 'submissions' | 'leaderboard'
 const BOARD_SIZE = 3
 const TOTAL = BOARD_SIZE * BOARD_SIZE
 const FREE_INDEX = Math.floor(TOTAL / 2)
-const REQUIRED_LINES = 3
 const YEARS = Array.from({ length: 19 }, (_, i) => 2007 + i)
 
 export default function AdminPage() {
