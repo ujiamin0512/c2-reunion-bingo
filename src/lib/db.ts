@@ -274,6 +274,12 @@ export async function updateSubmissionStatus(
 }
 
 // ─── Image upload ─────────────────────────────────────────────────────────────
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+const UPLOAD_MAX_ATTEMPTS = 4
+
 export async function uploadImage(
   participantId: string,
   taskId: number,
@@ -283,12 +289,30 @@ export async function uploadImage(
 
   if (isSupabaseConfigured()) {
     const path = `submissions/${participantId}/${taskId}.jpg`
-    const { error } = await supabase.storage
-      .from('bingo-images')
-      .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
-    if (error) throw error
-    const { data } = supabase.storage.from('bingo-images').getPublicUrl(path)
-    return data.publicUrl
+
+    // Small random jitter before the first attempt spreads out simultaneous
+    // uploads (e.g. everyone photographing the same task right after an
+    // announcement) instead of every device hitting Storage in the same instant.
+    await sleep(Math.random() * 600)
+
+    let lastError: unknown
+    for (let attempt = 0; attempt < UPLOAD_MAX_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff with jitter between retries, load-tested against
+        // Supabase Storage returning transient stream errors under concurrency.
+        const backoff = Math.min(1000 * 2 ** (attempt - 1), 8000)
+        await sleep(backoff + Math.random() * 500)
+      }
+      const { error } = await supabase.storage
+        .from('bingo-images')
+        .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
+      if (!error) {
+        const { data } = supabase.storage.from('bingo-images').getPublicUrl(path)
+        return data.publicUrl
+      }
+      lastError = error
+    }
+    throw lastError
   }
 
   // Base64 fallback for local mode

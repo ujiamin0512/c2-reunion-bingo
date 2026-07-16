@@ -46,6 +46,7 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
       onUpdate()
     } catch (err) {
       console.error('Upload failed', err)
+      alert('照片上传失败，请重试')
     } finally {
       setUploading(false)
     }
@@ -160,7 +161,6 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
