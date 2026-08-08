@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, ListChecks, Trophy, Settings, LogOut,
   Plus, Pencil, Trash2, CheckCircle, XCircle, Search, Download, Menu,
-  Eye, GraduationCap, BookOpen, X, ChevronRight
+  Eye, GraduationCap, BookOpen, X, ChevronRight, Copy
 } from 'lucide-react'
 import {
   getAllParticipants, getAllTasks, getAllSubmissions,
@@ -38,6 +38,8 @@ export default function AdminPage() {
   const [identityFilter, setIdentityFilter] = useState<'all' | Identity>('all')
   const [yearFilter, setYearFilter] = useState<string>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [leaderboardFilter, setLeaderboardFilter] = useState<string>('all')
+  const [copied, setCopied] = useState(false)
 
   // Forms
   const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null)
@@ -715,6 +717,18 @@ export default function AdminPage() {
     )
   }
 
+  const copyNames = async (names: string[]) => {
+    if (names.length === 0) return
+    const text = names.join('\n') + '\n'
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy names', err)
+    }
+  }
+
   // ── Leaderboard tab ────────────────────────────────────────────────────────
   // Sort: highest bingo-line count first; ties broken by earliest "提交" time
   // (participants who haven't hit the Bingo-page Submit button rank after
@@ -729,27 +743,79 @@ export default function AdminPage() {
         return aTime - bTime
       })
 
+    const filteredRanked = ranked.filter(p => {
+      if (leaderboardFilter === 'all') return true
+      return p.completedCount === Number(leaderboardFilter)
+    })
+
     return (
-      <div className="space-y-2">
-        {ranked.map((p, i) => (
-          <div key={p.id} className="bg-white/80 rounded-2xl p-4 flex items-center gap-3 card-shadow">
-            <span className="w-8 text-center font-bold text-lg">{['🥇','🥈','🥉'][i] || `#${i+1}`}</span>
-            <div className="flex-1 min-w-0">
-              <div className="font-bold text-amber-900 truncate">{p.name}</div>
-              <div className="text-xs text-amber-400">
-                {p.completedCount}/{TOTAL-1} 完成
-                {p.submitted_at && <> · 已提交 {new Date(p.submitted_at).toLocaleString('zh-CN')}</>}
+      <div className="space-y-4">
+        {/* Filter & Copy Actions */}
+        <div className="flex gap-3 flex-wrap items-center">
+          <select
+            value={leaderboardFilter}
+            onChange={e => setLeaderboardFilter(e.target.value)}
+            className="border-2 border-amber-100 rounded-xl px-3 py-2.5 text-sm bg-white/80 outline-none focus:border-amber-400 font-medium text-amber-800"
+          >
+            <option value="all">全部完成数</option>
+            {Array.from({ length: 9 }, (_, idx) => (
+              <option key={idx} value={idx}>
+                已完成 {idx} 个任务
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => copyNames(filteredRanked.map(p => p.name))}
+            disabled={filteredRanked.length === 0}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+              filteredRanked.length === 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
+                : copied
+                ? 'bg-green-500 text-white shadow-lg border-2 border-green-500'
+                : 'orange-gradient text-white shadow-md hover:shadow-lg active:scale-95 cursor-pointer'
+            }`}
+          >
+            {copied ? (
+              <>
+                <CheckCircle size={16} />
+                已复制!
+              </>
+            ) : (
+              <>
+                <Copy size={16} />
+                复制姓名
+              </>
+            )}
+          </button>
+
+          <div className="text-sm text-amber-500 ml-auto font-medium">
+            共 {filteredRanked.length} 人
+          </div>
+        </div>
+
+        {/* Ranked list */}
+        <div className="space-y-2">
+          {filteredRanked.map((p, i) => (
+            <div key={p.id} className="bg-white/80 rounded-2xl p-4 flex items-center gap-3 card-shadow">
+              <span className="w-8 text-center font-bold text-lg">{['🥇','🥈','🥉'][i] || `#${i+1}`}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-amber-900 truncate">{p.name}</div>
+                <div className="text-xs text-amber-400">
+                  {p.completedCount}/{TOTAL-1} 完成
+                  {p.submitted_at && <> · 已提交 {new Date(p.submitted_at).toLocaleString('zh-CN')}</>}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-black text-amber-600 text-lg">{p.bingoCount}</div>
+                <div className="text-xs text-amber-400">条Bingo</div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-black text-amber-600 text-lg">{p.bingoCount}</div>
-              <div className="text-xs text-amber-400">条Bingo</div>
-            </div>
-          </div>
-        ))}
-        {ranked.length === 0 && (
-          <div className="text-center text-amber-400 py-8">还没有参与者</div>
-        )}
+          ))}
+          {filteredRanked.length === 0 && (
+            <div className="text-center text-amber-400 py-8">没有找到符合条件的参与者</div>
+          )}
+        </div>
       </div>
     )
   }
