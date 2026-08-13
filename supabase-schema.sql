@@ -9,6 +9,8 @@ create table if not exists participants (
   name            text not null,
   identity        text not null check (identity in ('alumni', 'teacher')),
   graduation_year int,
+  class           text,
+  checked_in      boolean not null default false,
   task_order      jsonb not null default '[]',
   created_at      timestamptz default now(),
   submitted_at    timestamptz
@@ -83,3 +85,47 @@ insert into tasks (title, description, icon, board_size) values
   ('在礼堂前拍照',    '在礼堂正门前留影',         '🏛️', 3),
   ('在校门口拍照',    '在校门口来一张',           '⭐', 3)
 on conflict do nothing;
+
+-- ============================================================
+-- Triggers for auto-assigning task_order and created_at
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION assign_participant_defaults()
+RETURNS TRIGGER AS $$
+DECLARE
+  active_tasks jsonb;
+BEGIN
+  -- Auto-assign created_at if null
+  IF NEW.created_at IS NULL THEN
+    NEW.created_at := now();
+  END IF;
+
+  -- Auto-assign task_order if null or default (empty array)
+  IF NEW.task_order IS NULL OR NEW.task_order = '[]'::jsonb THEN
+    SELECT jsonb_agg(id)
+    INTO active_tasks
+    FROM (
+      SELECT id 
+      FROM tasks 
+      WHERE is_active = true AND board_size = 3
+      ORDER BY random()
+    ) t;
+    
+    IF active_tasks IS NOT NULL THEN
+      NEW.task_order := active_tasks;
+    ELSE
+      NEW.task_order := '[]'::jsonb;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_participants_defaults ON participants;
+
+CREATE TRIGGER trg_participants_defaults
+BEFORE INSERT ON participants
+FOR EACH ROW
+EXECUTE FUNCTION assign_participant_defaults();
+

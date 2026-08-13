@@ -75,10 +75,10 @@ export default function ProfilePage() {
 
   const roleLabel = participant.identity === 'alumni' ? '校友' : '老师'
   const roleYearLabel = participant.identity === 'alumni'
-    ? `${roleLabel} · ${participant.graduation_year}届`
+    ? `${roleLabel} · ${participant.graduation_year}届${participant.class ? ` (${participant.class})` : ''}`
     : roleLabel
   const hiddenCardLabel = participant.identity === 'alumni'
-    ? `Class of ${participant.graduation_year}`
+    ? `Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
     : 'Teacher'
 
   const rows: { label: string; value: string | number }[] = [
@@ -86,6 +86,9 @@ export default function ProfilePage() {
     { label: '身份', value: roleLabel },
     ...(participant.identity === 'alumni'
       ? [{ label: '毕业年份', value: participant.graduation_year ?? '' }]
+      : []),
+    ...(participant.class
+      ? [{ label: '班级', value: participant.class }]
       : []),
     { label: '注册时间', value: new Date(participant.created_at).toLocaleString('zh-CN') },
     { label: '已完成任务', value: `${completedCount} / ${TOTAL - 1}` },

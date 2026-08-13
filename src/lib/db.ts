@@ -23,12 +23,13 @@ export async function createParticipant(
   name: string,
   identity: Identity,
   graduation_year: number | null,
-  taskIds: number[]
+  taskIds: number[],
+  classVal: string | null = null
 ): Promise<Participant> {
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase
       .from('participants')
-      .insert({ name, identity, graduation_year, task_order: taskIds })
+      .insert({ name, identity, graduation_year, class: classVal, task_order: taskIds })
       .select()
       .single()
     if (error) throw error
@@ -40,12 +41,47 @@ export async function createParticipant(
     name,
     identity,
     graduation_year,
+    class: classVal,
+    checked_in: false,
     task_order: taskIds,
     created_at: new Date().toISOString(),
     submitted_at: null,
   }
   localStorage.setItem(LS_PARTICIPANT, JSON.stringify(p))
   return p
+}
+
+export async function createParticipantsBatch(
+  records: {
+    name: string
+    identity: Identity
+    graduation_year: number | null
+    class: string | null
+    checked_in?: boolean
+    task_order: number[]
+  }[]
+): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase.from('participants').insert(records)
+    if (error) throw error
+    return
+  }
+  // localStorage fallback (mock fallback)
+  if (records.length > 0) {
+    const last = records[records.length - 1]
+    const p: Participant = {
+      id: crypto.randomUUID(),
+      name: last.name,
+      identity: last.identity,
+      graduation_year: last.graduation_year,
+      class: last.class,
+      checked_in: last.checked_in ?? false,
+      task_order: last.task_order,
+      created_at: new Date().toISOString(),
+      submitted_at: null,
+    }
+    localStorage.setItem(LS_PARTICIPANT, JSON.stringify(p))
+  }
 }
 
 export async function getParticipant(id: string): Promise<Participant | null> {

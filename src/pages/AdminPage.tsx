@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, ListChecks, Trophy, Settings, LogOut,
   Plus, Pencil, Trash2, CheckCircle, XCircle, Search, Download, Menu,
-  Eye, GraduationCap, BookOpen, X, ChevronRight, Copy
+  Eye, GraduationCap, BookOpen, X, ChevronRight, Copy, Upload
 } from 'lucide-react'
 import {
   getAllParticipants, getAllTasks, getAllSubmissions,
   createParticipant, updateParticipant, deleteParticipant,
   createTask, updateTask, deleteTask,
-  updateSubmissionStatus, checkBingo, getTasks, shuffle, REQUIRED_LINES
+  updateSubmissionStatus, checkBingo, getTasks, shuffle, REQUIRED_LINES,
+  createParticipantsBatch
 } from '../lib/db'
 import type { Participant, Task, Submission, BoardSize, Identity } from '../types'
 
@@ -20,6 +21,10 @@ const BOARD_SIZE = 3
 const TOTAL = BOARD_SIZE * BOARD_SIZE
 const FREE_INDEX = Math.floor(TOTAL / 2)
 const YEARS = Array.from({ length: 19 }, (_, i) => 2007 + i)
+const CLASS_OPTIONS = [
+  'DAISY', 'IXORA', 'LOTUS', 'ROSE', 'TULIP', 'HIBISCUS', 
+  'JASMINE', 'VIOLET', 'ALLAMANDA', 'BALSAM', 'CARNATION'
+]
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -51,6 +56,10 @@ export default function AdminPage() {
   const [reviewingParticipantId, setReviewingParticipantId] = useState<string | null>(null)
   const [rejectedTaskIds, setRejectedTaskIds] = useState<Set<number>>(new Set())
   const [reviewSaving, setReviewSaving] = useState(false)
+
+  // CSV Import State
+  const [importing, setImporting] = useState(false)
+  const [importSummary, setImportSummary] = useState<{ success: number; failed: number; message: string } | null>(null)
 
   const loadAll = async () => {
     setLoading(true)
@@ -192,10 +201,17 @@ export default function AdminPage() {
 
   const exportCSV = () => {
     const rows = [
-      ['ID', '姓名', '身份', '毕业年份', '注册时间'].join(','),
-      ...participants.map(p => [p.id, p.name, p.identity, p.graduation_year ?? '', p.created_at].join(','))
+      ['ID', '姓名', '身份', '毕业年份', '班级', '注册时间'].join(','),
+      ...participants.map(p => [
+        p.id,
+        p.name,
+        p.identity === 'alumni' ? '校友' : '老师',
+        p.graduation_year ?? '',
+        p.class ?? '',
+        p.created_at
+      ].join(','))
     ].join('\n')
-    const blob = new Blob(['﻿' + rows], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob(['\ufeff' + rows], { type: 'text/csv;charset=utf-8' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = 'participants.csv'
@@ -206,6 +222,7 @@ export default function AdminPage() {
     if (!editingParticipant?.name?.trim()) return
     const identity = editingParticipant.identity ?? 'alumni'
     const year = identity === 'alumni' ? (editingParticipant.graduation_year ?? null) : null
+    const classVal = editingParticipant.class?.trim() || null
     setSavingParticipant(true)
     try {
       if (editingParticipant.id) {
@@ -213,16 +230,118 @@ export default function AdminPage() {
           name: editingParticipant.name.trim(),
           identity,
           graduation_year: year,
+          class: classVal,
+          checked_in: editingParticipant.checked_in ?? false,
         })
       } else {
-        const poolTasks = await getTasks(3)
+        const poolTasks = await getTasks(taskBoardSize)
         const shuffled = shuffle(poolTasks.map(t => t.id))
-        await createParticipant(editingParticipant.name.trim(), identity, year, shuffled)
+        const p = await createParticipant(editingParticipant.name.trim(), identity, year, shuffled, classVal)
+        if (editingParticipant.checked_in) {
+          await updateParticipant(p.id, { checked_in: true })
+        }
       }
       setEditingParticipant(null)
       loadAll()
     } finally {
       setSavingParticipant(false)
+    }
+  }
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    setImportSummary(null)
+
+    try {
+      const text = await file.text()
+      const parsedRows = parseCSV(text)
+      if (parsedRows.length === 0) {
+        alert('CSV 文件为空或解析失败')
+        return
+      }
+
+      // Query active tasks for current board size
+      const poolTasks = await getTasks(taskBoardSize)
+      const activeTaskIds = poolTasks.map(t => t.id)
+      
+      if (activeTaskIds.length === 0) {
+        alert(`当前没有可用的活动任务，请先在“任务管理”中为 ${taskBoardSize}x${taskBoardSize} 棋盘选择任务`)
+        return
+      }
+
+      const recordsToInsert: {
+        name: string
+        identity: Identity
+        graduation_year: number | null
+        class: string | null
+        task_order: number[]
+      }[] = []
+
+      let failedCount = 0
+
+      for (const row of parsedRows) {
+        // Find keys that map to name, graduation_year, class, identity
+        const nameKey = Object.keys(row).find(k => k === 'name' || k === '姓名')
+        const yearKey = Object.keys(row).find(k => k === 'graduation_year' || k === 'graduation year' || k === '毕业年份' || k === '毕业年')
+        const classKey = Object.keys(row).find(k => k === 'class' || k === '班级' || k === '班')
+        const identityKey = Object.keys(row).find(k => k === 'identity' || k === 'idendity' || k === '身份')
+
+        const name = nameKey ? row[nameKey]?.trim() : ''
+        if (!name) {
+          failedCount++
+          continue
+        }
+
+        const rawIdentity = identityKey ? row[identityKey]?.trim().toLowerCase() : ''
+        let identity: Identity = 'alumni'
+        if (rawIdentity === 'teacher' || rawIdentity === '老师' || rawIdentity === '教职工') {
+          identity = 'teacher'
+        }
+
+        const rawYear = yearKey ? row[yearKey]?.trim() : ''
+        const graduation_year = (identity === 'alumni' && rawYear) ? parseInt(rawYear, 10) : null
+
+        const classVal = classKey ? row[classKey]?.trim() || null : null
+
+        // Generate randomized task order
+        const shuffled = shuffle(activeTaskIds)
+
+        recordsToInsert.push({
+          name: name.toUpperCase(),
+          identity,
+          graduation_year: (graduation_year && !isNaN(graduation_year)) ? graduation_year : null,
+          class: classVal,
+          task_order: shuffled
+        })
+      }
+
+      if (recordsToInsert.length === 0) {
+        alert('没有找到合法的参与者数据')
+        return
+      }
+
+      await createParticipantsBatch(recordsToInsert)
+      setImportSummary({
+        success: recordsToInsert.length,
+        failed: failedCount,
+        message: `成功导入 ${recordsToInsert.length} 位参与者。` + (failedCount > 0 ? `跳过 ${failedCount} 行无效数据。` : '')
+      })
+      
+      // Automatically clear summary toast/banner after 10 seconds
+      setTimeout(() => {
+        setImportSummary(null)
+      }, 10000)
+
+      loadAll()
+    } catch (err) {
+      console.error(err)
+      alert('导入 CSV 时发生错误: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setImporting(false)
+      e.target.value = ''
     }
   }
 
@@ -280,6 +399,17 @@ export default function AdminPage() {
         <button onClick={exportCSV} className="flex items-center gap-1.5 border-2 border-amber-200 text-amber-700 rounded-xl px-4 py-2.5 text-sm font-medium">
           <Download size={15} /> 导出
         </button>
+        <label className="flex items-center gap-1.5 border-2 border-amber-200 text-amber-700 bg-white/50 hover:bg-white/80 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors">
+          <Upload size={15} />
+          <span>{importing ? '导入中...' : '导入 CSV'}</span>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleCSVUpload}
+            disabled={importing}
+            className="hidden"
+          />
+        </label>
         <button
           onClick={() => setEditingParticipant({ name: '', identity: 'alumni', graduation_year: null })}
           className="flex items-center gap-2 orange-gradient text-white rounded-xl px-4 py-2.5 text-sm font-bold"
@@ -287,6 +417,13 @@ export default function AdminPage() {
           <Plus size={16} /> 新增参与者
         </button>
       </div>
+
+      {importSummary && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-2xl flex items-center justify-between text-sm shadow-sm">
+          <span>{importSummary.message}</span>
+          <button onClick={() => setImportSummary(null)} className="text-green-600 hover:text-green-800 font-bold ml-2">✕</button>
+        </div>
+      )}
 
       <div className="text-sm text-amber-500">共 {filteredParticipants.length} 位参与者</div>
 
@@ -311,6 +448,14 @@ export default function AdminPage() {
                     {p.identity === 'alumni' && (
                       <span className="text-xs text-amber-400">Class of {p.graduation_year}</span>
                     )}
+                    {p.class && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 font-medium">
+                        {p.class}
+                      </span>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.checked_in ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {p.checked_in ? '已报到' : '未报到'}
+                    </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isFinished ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
                       {isFinished ? '已完成' : '进行中'}
                     </span>
@@ -334,6 +479,17 @@ export default function AdminPage() {
                     className="p-2 text-amber-400 hover:bg-amber-50 rounded-lg transition-colors"
                   >
                     <Eye size={16} />
+                  </button>
+                )}
+                {!p.checked_in && (
+                  <button
+                    onClick={async () => {
+                      await updateParticipant(p.id, { checked_in: true })
+                      loadAll()
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95 flex-shrink-0"
+                  >
+                    报到
                   </button>
                 )}
                 <button
@@ -400,15 +556,35 @@ export default function AdminPage() {
                   ))}
                 </div>
                 {(editingParticipant.identity ?? 'alumni') === 'alumni' && (
-                  <select
-                    value={editingParticipant.graduation_year ?? ''}
-                    onChange={e => setEditingParticipant(p => ({ ...p!, graduation_year: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-full border-2 border-amber-100 rounded-xl px-4 py-2.5 outline-none text-sm"
-                  >
-                    <option value="">选择毕业年份</option>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+                  <>
+                    <select
+                      value={editingParticipant.graduation_year ?? ''}
+                      onChange={e => setEditingParticipant(p => ({ ...p!, graduation_year: e.target.value ? Number(e.target.value) : null }))}
+                      className="w-full border-2 border-amber-100 rounded-xl px-4 py-2.5 outline-none text-sm font-medium text-amber-900"
+                    >
+                      <option value="">选择毕业年份</option>
+                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+
+                    <select
+                      value={editingParticipant.class ?? ''}
+                      onChange={e => setEditingParticipant(p => ({ ...p!, class: e.target.value || null }))}
+                      className="w-full border-2 border-amber-100 rounded-xl px-4 py-2.5 outline-none text-sm font-medium text-amber-900"
+                    >
+                      <option value="">选择班级（选填）</option>
+                      {CLASS_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </>
                 )}
+                <label className="flex items-center gap-2 px-1 text-sm text-amber-800 font-medium cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={editingParticipant.checked_in ?? false}
+                    onChange={e => setEditingParticipant(p => ({ ...p!, checked_in: e.target.checked }))}
+                    className="w-4 h-4 accent-amber-500 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span>确认已报到（签到）</span>
+                </label>
               </div>
               <div className="flex gap-3 mt-5">
                 <button onClick={() => setEditingParticipant(null)} className="flex-1 border-2 border-amber-200 text-amber-700 rounded-xl py-3">取消</button>
@@ -877,4 +1053,43 @@ export default function AdminPage() {
       </AnimatePresence>
     </div>
   )
+}
+
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/).filter(line => line.trim() !== '')
+  if (lines.length === 0) return []
+  
+  // Parse header
+  const headers = parseCSVLine(lines[0])
+  const result: Record<string, string>[] = []
+  
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCSVLine(lines[i])
+    if (row.length === 0 || (row.length === 1 && row[0] === '')) continue
+    const obj: Record<string, string> = {}
+    headers.forEach((header, index) => {
+      obj[header.trim().toLowerCase()] = row[index]?.trim() || ''
+    })
+    result.push(obj)
+  }
+  return result
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let cell = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      result.push(cell)
+      cell = ''
+    } else {
+      cell += char
+    }
+  }
+  result.push(cell)
+  return result.map(c => c.replace(/^"|"$/g, '').trim())
 }

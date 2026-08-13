@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getParticipant, getSubmissions, checkBingo, REQUIRED_LINES } from '../lib/db'
+import CheckInGuard from '../components/CheckInGuard'
 import type { Participant, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -15,20 +16,34 @@ export default function WelcomePage() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
 
+  const loadData = async (id: string) => {
+    const [p, subs] = await Promise.all([getParticipant(id), getSubmissions(id)])
+    if (!p) { navigate('/register', { replace: true }); return }
+    setParticipant(p)
+    setSubmissions(subs)
+    setLoading(false)
+  }
+
   useEffect(() => {
     const id = localStorage.getItem(PARTICIPANT_KEY)
     if (!id) { navigate('/', { replace: true }); return }
-
-    Promise.all([getParticipant(id), getSubmissions(id)]).then(([p, subs]) => {
-      if (!p) { navigate('/register', { replace: true }); return }
-      setParticipant(p)
-      setSubmissions(subs)
-      setLoading(false)
-    })
+    loadData(id)
   }, [navigate])
+
+  const refreshParticipant = async () => {
+    const id = localStorage.getItem(PARTICIPANT_KEY)
+    if (id) {
+      const p = await getParticipant(id)
+      if (p) setParticipant(p)
+    }
+  }
 
   if (loading) return <div className="min-h-dvh cream-bg flex items-center justify-center"><div className="text-amber-400 text-4xl animate-spin">⭕</div></div>
   if (!participant) return null
+
+  if (!participant.checked_in) {
+    return <CheckInGuard participant={participant} onRefresh={refreshParticipant} />
+  }
 
   const completedTaskIds = new Set(submissions.filter(s => s.status !== 'rejected').map(s => s.task_id))
   const completedIndices = new Set<number>()
@@ -41,7 +56,7 @@ export default function WelcomePage() {
   const bingoLines = checkBingo(completedIndices, BOARD_SIZE)
 
   const identityLabel = participant.identity === 'alumni'
-    ? `Alumni · Class of ${participant.graduation_year}`
+    ? `Alumni · Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
     : 'Teacher'
 
   const handleLogout = () => {

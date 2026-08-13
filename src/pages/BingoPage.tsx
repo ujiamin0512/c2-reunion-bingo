@@ -8,6 +8,7 @@ import BottomNav from '../components/BottomNav'
 import BingoTile from '../components/BingoTile'
 import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES } from '../lib/db'
 import { saveCanvasAsImage } from '../lib/shareImage'
+import CheckInGuard from '../components/CheckInGuard'
 import type { Participant, Task, Submission } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
@@ -124,6 +125,10 @@ export default function BingoPage() {
         <div className="text-amber-400 text-4xl animate-spin">◎</div>
       </div>
     )
+  }
+
+  if (participant && !participant.checked_in) {
+    return <CheckInGuard participant={participant} onRefresh={async () => refresh()} />
   }
 
   return (

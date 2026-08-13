@@ -7,6 +7,8 @@ export interface Participant {
   name: string
   identity: Identity
   graduation_year: number | null
+  class: string | null
+  checked_in: boolean
   task_order: number[]
   created_at: string
   submitted_at: string | null

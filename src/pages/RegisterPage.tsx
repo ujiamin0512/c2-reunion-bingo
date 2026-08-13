@@ -1,22 +1,27 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, User, BookOpen } from 'lucide-react'
+import { ArrowLeft, User, BookOpen, GraduationCap } from 'lucide-react'
 import { createParticipant, findExistingParticipant, getTasks, shuffle } from '../lib/db'
 import type { Identity } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
 const YEARS = Array.from({ length: 19 }, (_, i) => 2007 + i) // 2007-2025
+const CLASS_OPTIONS = [
+  'DAISY', 'IXORA', 'LOTUS', 'ROSE', 'TULIP', 'HIBISCUS', 
+  'JASMINE', 'VIOLET', 'ALLAMANDA', 'BALSAM', 'CARNATION'
+]
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [identity, setIdentity] = useState<Identity>('alumni')
   const [year, setYear] = useState<number | null>(null)
+  const [classVal, setClassVal] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const isValid = name.trim() && (identity === 'teacher' || year !== null)
+  const isValid = name.trim() && (identity === 'teacher' || (year !== null && classVal !== ''))
 
   const handleSubmit = async () => {
     if (!isValid || loading) return
@@ -39,7 +44,8 @@ export default function RegisterPage() {
         name.trim(),
         identity,
         identity === 'alumni' ? year : null,
-        shuffled
+        shuffled,
+        identity === 'alumni' ? classVal : null
       )
       localStorage.setItem(PARTICIPANT_KEY, participant.id)
       navigate('/bingo', { replace: true })
@@ -118,27 +124,45 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Year (only for alumni) */}
+        {/* Year & Class (only for alumni) */}
         {identity === 'alumni' && (
           <motion.div
-            className="space-y-2"
+            className="space-y-4"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             transition={{ duration: 0.25 }}
           >
-            <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
-              <BookOpen size={15} /> 毕业年份
-            </label>
-            <select
-              value={year ?? ''}
-              onChange={e => setYear(e.target.value ? Number(e.target.value) : null)}
-              className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 transition-colors appearance-none"
-            >
-              <option value="">选择年份</option>
-              {YEARS.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
+                <BookOpen size={15} /> 毕业年份
+              </label>
+              <select
+                value={year ?? ''}
+                onChange={e => setYear(e.target.value ? Number(e.target.value) : null)}
+                className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 transition-colors appearance-none"
+              >
+                <option value="">选择年份</option>
+                {YEARS.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
+                <GraduationCap size={15} /> 班级
+              </label>
+              <select
+                value={classVal}
+                onChange={e => setClassVal(e.target.value)}
+                className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 transition-colors appearance-none"
+              >
+                <option value="">选择班级</option>
+                {CLASS_OPTIONS.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
           </motion.div>
         )}
 
