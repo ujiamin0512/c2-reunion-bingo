@@ -212,6 +212,9 @@ export default function BingoPage() {
 
       {/* Submit */}
       <div className="px-5 mt-2">
+        <p className="text-center text-amber-600 text-xs mb-3.5 bg-amber-50/80 border border-amber-100/80 rounded-xl py-2.5 px-3">
+          💡 温馨提示：每上传一次照片，请点击下方的“提交”按钮送交审核。
+        </p>
         <motion.button
           onClick={handleSubmit}
           disabled={completedTaskCount === 0 || submitting}
