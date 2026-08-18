@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [identityFilter, setIdentityFilter] = useState<'all' | Identity>('all')
   const [yearFilter, setYearFilter] = useState<string>('all')
+  const [checkinFilter, setCheckinFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('all')
   const [copied, setCopied] = useState(false)
@@ -196,6 +197,10 @@ export default function AdminPage() {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
     if (identityFilter !== 'all' && p.identity !== identityFilter) return false
     if (yearFilter !== 'all' && String(p.graduation_year) !== yearFilter) return false
+    if (checkinFilter !== 'all') {
+      const isCheckedIn = checkinFilter === 'checked_in'
+      if (p.checked_in !== isCheckedIn) return false
+    }
     return true
   })
 
@@ -389,6 +394,15 @@ export default function AdminPage() {
           <option value="teacher">老师</option>
         </select>
         <select
+          value={checkinFilter}
+          onChange={e => setCheckinFilter(e.target.value as 'all' | 'checked_in' | 'not_checked_in')}
+          className="border-2 border-amber-100 rounded-xl px-3 py-2.5 text-sm bg-white/80 outline-none"
+        >
+          <option value="all">全部报到状态</option>
+          <option value="checked_in">已报到</option>
+          <option value="not_checked_in">未报到</option>
+        </select>
+        <select
           value={yearFilter}
           onChange={e => setYearFilter(e.target.value)}
           className="border-2 border-amber-100 rounded-xl px-3 py-2.5 text-sm bg-white/80 outline-none"
@@ -481,17 +495,19 @@ export default function AdminPage() {
                     <Eye size={16} />
                   </button>
                 )}
-                {!p.checked_in && (
-                  <button
-                    onClick={async () => {
-                      await updateParticipant(p.id, { checked_in: true })
-                      loadAll()
-                    }}
-                    className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95 flex-shrink-0"
-                  >
-                    报到
-                  </button>
-                )}
+                <button
+                  onClick={async () => {
+                    await updateParticipant(p.id, { checked_in: !p.checked_in })
+                    loadAll()
+                  }}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm active:scale-95 flex-shrink-0 ${
+                    p.checked_in
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  {p.checked_in ? '已报到' : '未报到'}
+                </button>
                 <button
                   onClick={() => setEditingParticipant(p)}
                   className="p-2 text-amber-400 hover:bg-amber-50 rounded-lg transition-colors"
