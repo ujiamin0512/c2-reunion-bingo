@@ -1055,7 +1055,7 @@ export default function AdminPage() {
         <div className="space-y-2">
           {filteredRanked.map((p, i) => (
             <div key={p.id} className="bg-white/80 rounded-2xl p-4 flex items-center gap-3 card-shadow">
-              <span className="w-8 text-center font-bold text-lg">{['🥇','🥈','🥉'][i] || `#${i+1}`}</span>
+              <span className="w-12 flex-shrink-0 text-left font-bold text-lg">{['🥇','🥈','🥉'][i] || `#${i+1}`}</span>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-amber-900 truncate">{p.name}</div>
                 <div className="text-xs text-amber-400">
