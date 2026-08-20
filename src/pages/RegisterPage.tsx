@@ -90,9 +90,12 @@ export default function RegisterPage() {
             type="text"
             value={name}
             onChange={e => setName(e.target.value.toUpperCase())}
-            placeholder="请输入你的姓名（将自动转为大写）"
+            placeholder="请输入您的姓名"
             className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 placeholder-amber-300 transition-colors uppercase"
           />
+          <p className="text-xs text-amber-500/80 leading-normal pl-1">
+            * 请根据您报名时登记的名字（中文或英文）填入；若报名时填写的为中英双语，请以英文名字为准（系统会自动将英文字母转为大写）。
+          </p>
         </div>
 
         {/* Identity */}
