@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getParticipant, getSubmissions, checkBingo, REQUIRED_LINES } from '../lib/db'
+import { getParticipant, getSubmissions, checkBingo, REQUIRED_LINES, getGameOpenToPublic } from '../lib/db'
 import CheckInGuard from '../components/CheckInGuard'
 import type { Participant, Submission } from '../types'
 
@@ -15,12 +15,18 @@ export default function WelcomePage() {
   const [participant, setParticipant] = useState<Participant | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
+  const [gameOpenToPublic, setGameOpenToPublic] = useState(false)
 
   const loadData = async (id: string) => {
-    const [p, subs] = await Promise.all([getParticipant(id), getSubmissions(id)])
+    const [p, subs, openToPublic] = await Promise.all([
+      getParticipant(id),
+      getSubmissions(id),
+      getGameOpenToPublic()
+    ])
     if (!p) { navigate('/register', { replace: true }); return }
     setParticipant(p)
     setSubmissions(subs)
+    setGameOpenToPublic(openToPublic)
     setLoading(false)
   }
 
@@ -41,7 +47,7 @@ export default function WelcomePage() {
   if (loading) return <div className="min-h-dvh cream-bg flex items-center justify-center"><div className="text-amber-400 text-4xl animate-spin">⭕</div></div>
   if (!participant) return null
 
-  if (!participant.checked_in) {
+  if (!participant.checked_in && !gameOpenToPublic) {
     return <CheckInGuard participant={participant} onRefresh={refreshParticipant} />
   }
 

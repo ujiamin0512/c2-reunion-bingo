@@ -450,3 +450,40 @@ export async function setSubmissionStopped(stopped: boolean): Promise<void> {
   localStorage.setItem('bingo_settings_submission_stopped', String(stopped))
 }
 
+export async function getGameOpenToPublic(): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'open_to_public')
+        .maybeSingle()
+      if (error) return false
+      return data?.value?.open || false
+    } catch (e) {
+      console.warn("Failed to get open_to_public from settings table, defaulting to false.", e)
+      return false
+    }
+  }
+  const raw = localStorage.getItem('bingo_settings_open_to_public')
+  return raw === 'true'
+}
+
+export async function setGameOpenToPublic(open: boolean): Promise<void> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ key: 'open_to_public', value: { open } })
+      if (error) throw error
+    } catch (e) {
+      console.error("Failed to set open_to_public in settings table.", e)
+      alert("更新设置失败，请确保数据库中已创建 settings 表并配置了 RLS 规则。\n详情请参考 console 控制台或 supabase-schema.sql。")
+      throw e
+    }
+    return
+  }
+  localStorage.setItem('bingo_settings_open_to_public', String(open))
+}
+
+

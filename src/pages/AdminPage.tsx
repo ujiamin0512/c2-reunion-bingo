@@ -12,7 +12,8 @@ import {
   createParticipant, updateParticipant, deleteParticipant,
   createTask, updateTask, deleteTask,
   updateSubmissionStatus, checkBingo, getTasks, shuffle, REQUIRED_LINES,
-  createParticipantsBatch, getSubmissionStopped, setSubmissionStopped
+  createParticipantsBatch, getSubmissionStopped, setSubmissionStopped,
+  getGameOpenToPublic, setGameOpenToPublic
 } from '../lib/db'
 import type { Participant, Task, Submission, BoardSize, Identity } from '../types'
 
@@ -49,6 +50,7 @@ export default function AdminPage() {
   const [copied, setCopied] = useState(false)
   const [submissionStopped, setSubmissionStoppedState] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [gameOpenToPublic, setGameOpenToPublicState] = useState(false)
 
   // Forms
   const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null)
@@ -67,16 +69,18 @@ export default function AdminPage() {
 
   const loadAll = async () => {
     setLoading(true)
-    const [ps, ts, subs, stopped] = await Promise.all([
+    const [ps, ts, subs, stopped, openToPublic] = await Promise.all([
       getAllParticipants(),
       getAllTasks(),
       getAllSubmissions(),
-      getSubmissionStopped()
+      getSubmissionStopped(),
+      getGameOpenToPublic()
     ])
     setParticipants(ps)
     setTasks(ts)
     setSubmissions(subs)
     setSubmissionStoppedState(stopped)
+    setGameOpenToPublicState(openToPublic)
     setLoading(false)
   }
 
@@ -931,6 +935,19 @@ export default function AdminPage() {
     }
   }
 
+  const handleToggleGameOpen = async () => {
+    const nextState = !gameOpenToPublic
+    setSavingSettings(true)
+    try {
+      await setGameOpenToPublic(nextState)
+      setGameOpenToPublicState(nextState)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   const copyNames = async (names: string[]) => {
     if (names.length === 0) return
     const text = names.join('\n') + '\n'
@@ -1014,6 +1031,19 @@ export default function AdminPage() {
           >
             {submissionStopped ? <Lock size={16} /> : <Unlock size={16} />}
             {submissionStopped ? '已停止提交 (点击开放)' : '开放提交中 (点击停止)'}
+          </button>
+
+          <button
+            onClick={handleToggleGameOpen}
+            disabled={savingSettings}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 active:scale-95 ${
+              gameOpenToPublic
+                ? 'bg-teal-600 hover:bg-teal-700 text-white shadow-md border-2 border-teal-600'
+                : 'bg-slate-500 hover:bg-slate-600 text-white shadow-md border-2 border-slate-500'
+            } disabled:opacity-60`}
+          >
+            {gameOpenToPublic ? <Unlock size={16} /> : <Lock size={16} />}
+            {gameOpenToPublic ? '免签到进入已开启' : '仅限已报到进入'}
           </button>
 
           <div className="text-sm text-amber-500 ml-auto font-medium">

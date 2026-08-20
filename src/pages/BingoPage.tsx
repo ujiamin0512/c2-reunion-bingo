@@ -6,7 +6,7 @@ import html2canvas from 'html2canvas-pro'
 import { Download, Send } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import BingoTile from '../components/BingoTile'
-import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES, getSubmissionStopped } from '../lib/db'
+import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES, getSubmissionStopped, getGameOpenToPublic } from '../lib/db'
 import { saveCanvasAsImage } from '../lib/shareImage'
 import CheckInGuard from '../components/CheckInGuard'
 import type { Participant, Task, Submission } from '../types'
@@ -28,6 +28,7 @@ export default function BingoPage() {
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submissionStopped, setSubmissionStopped] = useState(false)
+  const [gameOpenToPublic, setGameOpenToPublic] = useState(false)
 
   const participantId = localStorage.getItem(PARTICIPANT_KEY)
 
@@ -37,17 +38,19 @@ export default function BingoPage() {
   }, [participantId, navigate])
 
   const loadData = useCallback(async (id: string) => {
-    const [p, allTasks, subs, stopped] = await Promise.all([
+    const [p, allTasks, subs, stopped, openToPublic] = await Promise.all([
       getParticipant(id),
       getTasks(3),
       getSubmissions(id),
-      getSubmissionStopped()
+      getSubmissionStopped(),
+      getGameOpenToPublic()
     ])
     if (!p) { navigate('/register', { replace: true }); return }
     setParticipant(p)
     setTasks(allTasks)
     setSubmissions(subs)
     setSubmissionStopped(stopped)
+    setGameOpenToPublic(openToPublic)
     setLoading(false)
   }, [navigate])
 
@@ -130,7 +133,7 @@ export default function BingoPage() {
     )
   }
 
-  if (participant && !participant.checked_in) {
+  if (participant && !participant.checked_in && !gameOpenToPublic) {
     return <CheckInGuard participant={participant} onRefresh={async () => refresh()} />
   }
 
