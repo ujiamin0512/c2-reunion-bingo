@@ -4,14 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, ListChecks, Trophy, Settings, LogOut,
   Plus, Pencil, Trash2, CheckCircle, XCircle, Search, Download, Menu,
-  Eye, GraduationCap, BookOpen, X, ChevronRight, Copy, Upload
+  Eye, GraduationCap, BookOpen, X, ChevronRight, Copy, Upload,
+  Lock, Unlock
 } from 'lucide-react'
 import {
   getAllParticipants, getAllTasks, getAllSubmissions,
   createParticipant, updateParticipant, deleteParticipant,
   createTask, updateTask, deleteTask,
   updateSubmissionStatus, checkBingo, getTasks, shuffle, REQUIRED_LINES,
-  createParticipantsBatch
+  createParticipantsBatch, getSubmissionStopped, setSubmissionStopped
 } from '../lib/db'
 import type { Participant, Task, Submission, BoardSize, Identity } from '../types'
 
@@ -46,6 +47,8 @@ export default function AdminPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('all')
   const [copied, setCopied] = useState(false)
+  const [submissionStopped, setSubmissionStoppedState] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // Forms
   const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null)
@@ -64,10 +67,16 @@ export default function AdminPage() {
 
   const loadAll = async () => {
     setLoading(true)
-    const [ps, ts, subs] = await Promise.all([getAllParticipants(), getAllTasks(), getAllSubmissions()])
+    const [ps, ts, subs, stopped] = await Promise.all([
+      getAllParticipants(),
+      getAllTasks(),
+      getAllSubmissions(),
+      getSubmissionStopped()
+    ])
     setParticipants(ps)
     setTasks(ts)
     setSubmissions(subs)
+    setSubmissionStoppedState(stopped)
     setLoading(false)
   }
 
@@ -909,6 +918,19 @@ export default function AdminPage() {
     )
   }
 
+  const handleToggleSubmission = async () => {
+    const nextState = !submissionStopped
+    setSavingSettings(true)
+    try {
+      await setSubmissionStopped(nextState)
+      setSubmissionStoppedState(nextState)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   const copyNames = async (names: string[]) => {
     if (names.length === 0) return
     const text = names.join('\n') + '\n'
@@ -979,6 +1001,19 @@ export default function AdminPage() {
                 复制姓名
               </>
             )}
+          </button>
+
+          <button
+            onClick={handleToggleSubmission}
+            disabled={savingSettings}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 active:scale-95 ${
+              submissionStopped
+                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md border-2 border-red-500'
+                : 'bg-green-500 hover:bg-green-600 text-white shadow-md border-2 border-green-500'
+            } disabled:opacity-60`}
+          >
+            {submissionStopped ? <Lock size={16} /> : <Unlock size={16} />}
+            {submissionStopped ? '已停止提交 (点击开放)' : '开放提交中 (点击停止)'}
           </button>
 
           <div className="text-sm text-amber-500 ml-auto font-medium">

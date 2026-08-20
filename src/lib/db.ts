@@ -412,3 +412,41 @@ export function shuffle<T>(arr: T[]): T[] {
   }
   return a
 }
+
+// ─── Settings / Configuration ──────────────────────────────────────────────────
+export async function getSubmissionStopped(): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'submission_stopped')
+        .maybeSingle()
+      if (error) return false
+      return data?.value?.stopped || false
+    } catch (e) {
+      console.warn("Failed to get submission_stopped from settings table, defaulting to false.", e)
+      return false
+    }
+  }
+  const raw = localStorage.getItem('bingo_settings_submission_stopped')
+  return raw === 'true'
+}
+
+export async function setSubmissionStopped(stopped: boolean): Promise<void> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ key: 'submission_stopped', value: { stopped } })
+      if (error) throw error
+    } catch (e) {
+      console.error("Failed to set submission_stopped in settings table.", e)
+      alert("更新设置失败，请确保数据库中已创建 settings 表并配置了 RLS 规则。\n详情请参考 console 控制台或 supabase-schema.sql。")
+      throw e
+    }
+    return
+  }
+  localStorage.setItem('bingo_settings_submission_stopped', String(stopped))
+}
+

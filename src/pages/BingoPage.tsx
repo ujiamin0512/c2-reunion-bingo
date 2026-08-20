@@ -6,7 +6,7 @@ import html2canvas from 'html2canvas-pro'
 import { Download, Send } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import BingoTile from '../components/BingoTile'
-import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES } from '../lib/db'
+import { getParticipant, getTasks, getSubmissions, checkBingo, submitParticipant, REQUIRED_LINES, getSubmissionStopped } from '../lib/db'
 import { saveCanvasAsImage } from '../lib/shareImage'
 import CheckInGuard from '../components/CheckInGuard'
 import type { Participant, Task, Submission } from '../types'
@@ -27,6 +27,7 @@ export default function BingoPage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submissionStopped, setSubmissionStopped] = useState(false)
 
   const participantId = localStorage.getItem(PARTICIPANT_KEY)
 
@@ -36,15 +37,17 @@ export default function BingoPage() {
   }, [participantId, navigate])
 
   const loadData = useCallback(async (id: string) => {
-    const [p, allTasks, subs] = await Promise.all([
+    const [p, allTasks, subs, stopped] = await Promise.all([
       getParticipant(id),
       getTasks(3),
       getSubmissions(id),
+      getSubmissionStopped()
     ])
     if (!p) { navigate('/register', { replace: true }); return }
     setParticipant(p)
     setTasks(allTasks)
     setSubmissions(subs)
+    setSubmissionStopped(stopped)
     setLoading(false)
   }, [navigate])
 
@@ -106,7 +109,7 @@ export default function BingoPage() {
   }
 
   const handleSubmit = async () => {
-    if (!participantId || submitting || completedTaskCount === 0) return
+    if (!participantId || submitting || completedTaskCount === 0 || submissionStopped) return
     setSubmitting(true)
     try {
       await submitParticipant(participantId)
@@ -203,6 +206,7 @@ export default function BingoPage() {
               participantId={participantId!}
               isHighlighted={highlightedCells.has(i)}
               onUpdate={refresh}
+              isSubmissionStopped={submissionStopped}
             />
           ))}
         </div>
@@ -212,21 +216,33 @@ export default function BingoPage() {
 
       {/* Submit */}
       <div className="px-5 mt-2">
-        <p className="text-center text-amber-600 text-xs mb-3.5 bg-amber-50/80 border border-amber-100/80 rounded-xl py-2.5 px-3">
-          💡 温馨提示：每上传一次照片，请点击下方的“提交”按钮送交审核。
-        </p>
+        {submissionStopped ? (
+          <p className="text-center text-red-600 text-xs mb-3.5 bg-red-50/80 border border-red-100/80 rounded-xl py-2.5 px-3 font-semibold">
+            🚫 提示：当前已停止提交，您无法上传、修改照片或重新提交。
+          </p>
+        ) : (
+          <p className="text-center text-amber-600 text-xs mb-3.5 bg-amber-50/80 border border-amber-100/80 rounded-xl py-2.5 px-3">
+            💡 温馨提示：每上传一次照片，请点击下方的“提交”按钮送交审核。
+          </p>
+        )}
         <motion.button
           onClick={handleSubmit}
-          disabled={completedTaskCount === 0 || submitting}
+          disabled={completedTaskCount === 0 || submitting || submissionStopped}
           className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
-            completedTaskCount === 0
+            completedTaskCount === 0 || submissionStopped
               ? 'orange-gradient-disabled text-white cursor-not-allowed'
               : 'orange-gradient text-white shadow-lg'
           }`}
-          whileTap={completedTaskCount > 0 ? { scale: 0.97 } : {}}
+          whileTap={completedTaskCount > 0 && !submissionStopped ? { scale: 0.97 } : {}}
         >
           <Send size={16} />
-          {submitting ? '提交中...' : participant?.submitted_at ? '重新提交' : '提交我的Bingo'}
+          {submitting
+            ? '提交中...'
+            : submissionStopped
+            ? '提交已截止'
+            : participant?.submitted_at
+            ? '重新提交'
+            : '提交我的Bingo'}
         </motion.button>
         {participant?.submitted_at && !submitting && (
           <p className="text-center text-amber-400 text-xs mt-2">

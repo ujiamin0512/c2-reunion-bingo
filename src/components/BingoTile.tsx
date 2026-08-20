@@ -11,9 +11,10 @@ interface Props {
   participantId: string
   isHighlighted?: boolean
   onUpdate: () => void
+  isSubmissionStopped?: boolean
 }
 
-export default function BingoTile({ task, isFree, submission, participantId, isHighlighted, onUpdate }: Props) {
+export default function BingoTile({ task, isFree, submission, participantId, isHighlighted, onUpdate, isSubmissionStopped = false }: Props) {
   const [uploading, setUploading] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
@@ -29,7 +30,7 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
     if (isFree) return
     if (submission) {
       setShowOptions(true)
-    } else {
+    } else if (!isSubmissionStopped) {
       fileRef.current?.click()
     }
   }
@@ -94,9 +95,11 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
                 ? 'border-orange-400 bg-orange-50'
                 : isDraft
                   ? 'border-slate-300 bg-slate-50'
-                  : 'border-amber-100 bg-white/70 hover:border-amber-300'
+                  : isSubmissionStopped && !submission
+                    ? 'border-amber-50 bg-white/50 cursor-default'
+                    : 'border-amber-100 bg-white/70 hover:border-amber-300'
         } ${isHighlighted ? 'ring-4 ring-green-400' : ''}`}
-        whileTap={{ scale: 0.94 }}
+        whileTap={isFree || (isSubmissionStopped && !submission) ? {} : { scale: 0.94 }}
       >
         {/* Background image */}
         {imgSrc && (
@@ -141,7 +144,7 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
         )}
 
         {/* Refresh/edit affordance — tapping the tile re-opens edit/reset options */}
-        {submission && !uploading && (
+        {submission && !uploading && !isSubmissionStopped && (
           <span className="absolute bottom-1 right-1 z-10 bg-white/90 rounded-full p-1 shadow-sm">
             <RefreshCw size={12} className="text-amber-600" />
           </span>
@@ -189,20 +192,26 @@ export default function BingoTile({ task, isFree, submission, participantId, isH
               {imgSrc && (
                 <img src={imgSrc} alt="" className="w-full h-40 object-cover rounded-2xl mb-4" />
               )}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setShowOptions(false); fileRef.current?.click() }}
-                  className="flex-1 orange-gradient text-white rounded-2xl py-3 font-bold"
-                >
-                  重新上传
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="flex-1 border-2 border-red-200 text-red-500 rounded-2xl py-3 font-medium"
-                >
-                  清除照片
-                </button>
-              </div>
+              {isSubmissionStopped ? (
+                <div className="w-full text-center text-red-500 font-semibold py-3 bg-red-50 rounded-2xl border border-red-100">
+                  已截止提交，无法修改照片
+                </div>
+              ) : (
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => { setShowOptions(false); fileRef.current?.click() }}
+                    className="flex-1 orange-gradient text-white rounded-2xl py-3 font-bold"
+                  >
+                    重新上传
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 border-2 border-red-200 text-red-500 rounded-2xl py-3 font-medium"
+                  >
+                    清除照片
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
