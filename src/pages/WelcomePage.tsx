@@ -63,6 +63,8 @@ export default function WelcomePage() {
 
   const identityLabel = participant.identity === 'alumni'
     ? `Alumni · Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
+    : participant.identity === 'student'
+    ? `Student · Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
     : 'Teacher'
 
   const handleLogout = () => {

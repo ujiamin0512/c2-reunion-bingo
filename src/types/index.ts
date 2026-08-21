@@ -1,4 +1,4 @@
-export type Identity = 'alumni' | 'teacher'
+export type Identity = 'alumni' | 'teacher' | 'student'
 export type SubmissionStatus = 'draft' | 'pending' | 'approved' | 'rejected'
 export type BoardSize = 3 | 4 | 5
 

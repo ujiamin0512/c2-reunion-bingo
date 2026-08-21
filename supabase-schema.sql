@@ -7,7 +7,7 @@
 create table if not exists participants (
   id              uuid primary key default gen_random_uuid(),
   name            text not null,
-  identity        text not null check (identity in ('alumni', 'teacher')),
+  identity        text not null check (identity in ('alumni', 'teacher', 'student')),
   graduation_year int,
   class           text,
   checked_in      boolean not null default false,

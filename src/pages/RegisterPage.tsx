@@ -6,7 +6,7 @@ import { createParticipant, findExistingParticipant, getTasks, shuffle } from '.
 import type { Identity } from '../types'
 
 const PARTICIPANT_KEY = 'bingo_participant_id'
-const YEARS = Array.from({ length: 19 }, (_, i) => 2007 + i) // 2007-2025
+const YEARS = Array.from({ length: 20 }, (_, i) => 2007 + i) // 2007-2026
 const CLASS_OPTIONS = [
   'DAISY', 'IXORA', 'LOTUS', 'ROSE', 'TULIP', 'HIBISCUS', 
   'JASMINE', 'VIOLET', 'ALLAMANDA', 'BALSAM', 'CARNATION'
@@ -31,7 +31,7 @@ export default function RegisterPage() {
       const existing = await findExistingParticipant(
         name.trim(),
         identity,
-        identity === 'alumni' ? year : null
+        identity !== 'teacher' ? year : null
       )
       if (existing) {
         localStorage.setItem(PARTICIPANT_KEY, existing.id)
@@ -43,9 +43,9 @@ export default function RegisterPage() {
       const participant = await createParticipant(
         name.trim(),
         identity,
-        identity === 'alumni' ? year : null,
+        identity !== 'teacher' ? year : null,
         shuffled,
-        identity === 'alumni' ? classVal : null
+        identity !== 'teacher' ? classVal : null
       )
       localStorage.setItem(PARTICIPANT_KEY, participant.id)
       navigate('/bingo', { replace: true })
@@ -101,13 +101,13 @@ export default function RegisterPage() {
         {/* Identity */}
         <div className="space-y-2">
           <label className="text-amber-800 font-medium text-sm">我是...</label>
-          <div className="grid grid-cols-2 gap-3">
-            {([['alumni', '🎓', '校友'], ['teacher', '📖', '老师']] as const).map(
+          <div className="grid grid-cols-3 gap-2">
+            {([['alumni', '🎓', '校友'], ['student', '🏫', '在校生'], ['teacher', '📖', '老师']] as const).map(
               ([val, icon, label]) => (
                 <button
                   key={val}
                   onClick={() => setIdentity(val as Identity)}
-                  className={`flex items-center gap-2 px-4 py-4 rounded-2xl border-2 font-medium transition-all ${
+                  className={`flex items-center gap-1 px-2.5 py-3 rounded-2xl border-2 text-sm font-medium transition-all ${
                     identity === val
                       ? 'border-amber-400 bg-amber-50 text-amber-800'
                       : 'border-gray-200 bg-white/60 text-gray-500'
@@ -127,8 +127,8 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Year & Class (only for alumni) */}
-        {identity === 'alumni' && (
+        {/* Year & Class (only for alumni & student) */}
+        {identity !== 'teacher' && (
           <motion.div
             className="space-y-4"
             initial={{ opacity: 0, height: 0 }}

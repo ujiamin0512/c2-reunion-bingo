@@ -5,7 +5,7 @@ import {
   Users, ListChecks, Trophy, Settings, LogOut,
   Plus, Pencil, Trash2, CheckCircle, XCircle, Search, Download, Menu,
   Eye, GraduationCap, BookOpen, X, ChevronRight, Copy, Upload,
-  Lock, Unlock
+  Lock, Unlock, School
 } from 'lucide-react'
 import {
   getAllParticipants, getAllTasks, getAllSubmissions,
@@ -22,7 +22,7 @@ type AdminTab = 'participants' | 'tasks' | 'submissions' | 'leaderboard'
 const BOARD_SIZE = 3
 const TOTAL = BOARD_SIZE * BOARD_SIZE
 const FREE_INDEX = Math.floor(TOTAL / 2)
-const YEARS = Array.from({ length: 19 }, (_, i) => 2007 + i)
+const YEARS = Array.from({ length: 20 }, (_, i) => 2007 + i)
 const CLASS_OPTIONS = [
   'DAISY', 'IXORA', 'LOTUS', 'ROSE', 'TULIP', 'HIBISCUS', 
   'JASMINE', 'VIOLET', 'ALLAMANDA', 'BALSAM', 'CARNATION'
@@ -199,11 +199,12 @@ export default function AdminPage() {
   // ── Participants tab ───────────────────────────────────────────────────────
   const totalCount = participants.length
   const alumniCount = participants.filter(p => p.identity === 'alumni').length
+  const studentCount = participants.filter(p => p.identity === 'student').length
   const teacherCount = participants.filter(p => p.identity === 'teacher').length
   const finishedCount = participants.filter(p => getParticipantStats(p).bingoCount >= REQUIRED_LINES).length
 
   const years = Array.from(
-    new Set(participants.filter(p => p.identity === 'alumni' && p.graduation_year).map(p => p.graduation_year as number))
+    new Set(participants.filter(p => p.identity !== 'teacher' && p.graduation_year).map(p => p.graduation_year as number))
   ).sort((a, b) => b - a)
 
   const filteredParticipants = participants.filter(p => {
@@ -223,7 +224,7 @@ export default function AdminPage() {
       ...participants.map(p => [
         p.id,
         p.name,
-        p.identity === 'alumni' ? '校友' : '老师',
+        p.identity === 'alumni' ? '校友' : p.identity === 'student' ? '在校生' : '老师',
         p.graduation_year ?? '',
         p.class ?? '',
         p.created_at
@@ -239,8 +240,8 @@ export default function AdminPage() {
   const saveParticipant = async () => {
     if (!editingParticipant?.name?.trim()) return
     const identity = editingParticipant.identity ?? 'alumni'
-    const year = identity === 'alumni' ? (editingParticipant.graduation_year ?? null) : null
-    const classVal = editingParticipant.class?.trim() || null
+    const year = identity !== 'teacher' ? (editingParticipant.graduation_year ?? null) : null
+    const classVal = identity !== 'teacher' ? (editingParticipant.class?.trim() || null) : null
     setSavingParticipant(true)
     try {
       if (editingParticipant.id) {
@@ -317,10 +318,12 @@ export default function AdminPage() {
         let identity: Identity = 'alumni'
         if (rawIdentity === 'teacher' || rawIdentity === '老师' || rawIdentity === '教职工') {
           identity = 'teacher'
+        } else if (rawIdentity === 'student' || rawIdentity === '在校生') {
+          identity = 'student'
         }
 
         const rawYear = yearKey ? row[yearKey]?.trim() : ''
-        const graduation_year = (identity === 'alumni' && rawYear) ? parseInt(rawYear, 10) : null
+        const graduation_year = (identity !== 'teacher' && rawYear) ? parseInt(rawYear, 10) : null
 
         const classVal = classKey ? row[classKey]?.trim() || null : null
 
@@ -379,10 +382,11 @@ export default function AdminPage() {
   const renderParticipantsTab = () => (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {renderStatCard(Users, '总参与人数', totalCount, 'bg-blue-100 text-blue-500')}
         {renderStatCard(CheckCircle, '已完成人数', finishedCount, 'bg-green-100 text-green-500')}
         {renderStatCard(GraduationCap, '校友', alumniCount, 'bg-amber-100 text-amber-500')}
+        {renderStatCard(School, '在校生', studentCount, 'bg-emerald-100 text-emerald-500')}
         {renderStatCard(BookOpen, '老师', teacherCount, 'bg-purple-100 text-purple-500')}
       </div>
 
@@ -404,6 +408,7 @@ export default function AdminPage() {
         >
           <option value="all">全部</option>
           <option value="alumni">校友</option>
+          <option value="student">在校生</option>
           <option value="teacher">老师</option>
         </select>
         <select
@@ -470,9 +475,9 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-amber-900 truncate">{p.name}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 font-medium">
-                      {p.identity === 'alumni' ? '校友' : '老师'}
+                      {p.identity === 'alumni' ? '校友' : p.identity === 'student' ? '在校生' : '老师'}
                     </span>
-                    {p.identity === 'alumni' && (
+                    {p.identity !== 'teacher' && (
                       <span className="text-xs text-amber-400">Class of {p.graduation_year}</span>
                     )}
                     {p.class && (
@@ -568,23 +573,23 @@ export default function AdminPage() {
                   placeholder="姓名"
                   className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-xl px-4 py-2.5 outline-none text-sm uppercase"
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  {(['alumni', 'teacher'] as const).map(val => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(['alumni', 'student', 'teacher'] as const).map(val => (
                     <button
                       key={val}
                       type="button"
                       onClick={() => setEditingParticipant(p => ({ ...p!, identity: val }))}
-                      className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium ${
+                      className={`px-2 py-2.5 rounded-xl border-2 text-xs font-medium ${
                         (editingParticipant.identity ?? 'alumni') === val
                           ? 'border-amber-400 bg-amber-50 text-amber-800'
                           : 'border-gray-200 text-gray-500'
                       }`}
                     >
-                      {val === 'alumni' ? '校友' : '老师'}
+                      {val === 'alumni' ? '校友' : val === 'student' ? '在校生' : '老师'}
                     </button>
                   ))}
                 </div>
-                {(editingParticipant.identity ?? 'alumni') === 'alumni' && (
+                {(editingParticipant.identity ?? 'alumni') !== 'teacher' && (
                   <>
                     <select
                       value={editingParticipant.graduation_year ?? ''}
@@ -835,7 +840,7 @@ export default function AdminPage() {
           <div className="flex-1 min-w-0">
             <div className="font-bold text-amber-900 truncate">{p.name}</div>
             <div className="text-xs text-amber-400">
-              {p.identity === 'alumni' ? `${p.graduation_year}届校友` : '老师'}
+              {p.identity === 'alumni' ? `${p.graduation_year}届校友` : p.identity === 'student' ? `${p.graduation_year}届在校生` : '老师'}
               {p.submitted_at && <> · 提交于 {new Date(p.submitted_at).toLocaleString('zh-CN')}</>}
             </div>
           </div>

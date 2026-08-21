@@ -73,18 +73,20 @@ export default function ProfilePage() {
   const completedCount = submissions.filter(s => s.status !== 'rejected').length
   const isFinished = bingoLines.length >= REQUIRED_LINES
 
-  const roleLabel = participant.identity === 'alumni' ? '校友' : '老师'
-  const roleYearLabel = participant.identity === 'alumni'
+  const roleLabel = participant.identity === 'alumni' ? '校友' : participant.identity === 'student' ? '在校生' : '老师'
+  const roleYearLabel = participant.identity !== 'teacher'
     ? `${roleLabel} · ${participant.graduation_year}届${participant.class ? ` (${participant.class})` : ''}`
     : roleLabel
   const hiddenCardLabel = participant.identity === 'alumni'
     ? `Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
+    : participant.identity === 'student'
+    ? `Student · Class of ${participant.graduation_year}${participant.class ? ` (${participant.class})` : ''}`
     : 'Teacher'
 
   const rows: { label: string; value: string | number }[] = [
     { label: '姓名', value: participant.name },
     { label: '身份', value: roleLabel },
-    ...(participant.identity === 'alumni'
+    ...(participant.identity !== 'teacher'
       ? [{ label: '毕业年份', value: participant.graduation_year ?? '' }]
       : []),
     ...(participant.class
