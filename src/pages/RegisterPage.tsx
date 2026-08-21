@@ -106,7 +106,15 @@ export default function RegisterPage() {
               ([val, icon, label]) => (
                 <button
                   key={val}
-                  onClick={() => setIdentity(val as Identity)}
+                  onClick={() => {
+                    const nextId = val as Identity
+                    setIdentity(nextId)
+                    if (nextId === 'student') {
+                      setYear(2026)
+                    } else {
+                      setYear(null)
+                    }
+                  }}
                   className={`flex items-center gap-1 px-2.5 py-3 rounded-2xl border-2 text-sm font-medium transition-all ${
                     identity === val
                       ? 'border-amber-400 bg-amber-50 text-amber-800'
@@ -135,21 +143,23 @@ export default function RegisterPage() {
             animate={{ opacity: 1, height: 'auto' }}
             transition={{ duration: 0.25 }}
           >
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
-                <BookOpen size={15} /> 毕业年份
-              </label>
-              <select
-                value={year ?? ''}
-                onChange={e => setYear(e.target.value ? Number(e.target.value) : null)}
-                className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 transition-colors appearance-none"
-              >
-                <option value="">选择年份</option>
-                {YEARS.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
+            {identity === 'alumni' && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
+                  <BookOpen size={15} /> 毕业年份
+                </label>
+                <select
+                  value={year ?? ''}
+                  onChange={e => setYear(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border-2 border-amber-100 focus:border-amber-400 rounded-2xl px-4 py-3.5 outline-none bg-white/80 text-amber-900 transition-colors appearance-none"
+                >
+                  <option value="">选择年份</option>
+                  {YEARS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-amber-800 font-medium text-sm">
