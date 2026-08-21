@@ -16,6 +16,7 @@ import {
   getGameOpenToPublic, setGameOpenToPublic
 } from '../lib/db'
 import type { Participant, Task, Submission, BoardSize, Identity } from '../types'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 type AdminTab = 'participants' | 'tasks' | 'submissions' | 'leaderboard'
 
@@ -86,6 +87,32 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (authed) loadAll()
+  }, [authed])
+
+  useEffect(() => {
+    if (!authed || !isSupabaseConfigured()) return
+
+    const channel = supabase
+      .channel('admin-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'participants' },
+        () => {
+          loadAll()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'submissions' },
+        () => {
+          loadAll()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [authed])
 
   const loginAdmin = () => {

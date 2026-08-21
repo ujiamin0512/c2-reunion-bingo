@@ -141,4 +141,29 @@ create policy "settings_insert" on settings for insert with check (true);
 create policy "settings_update" on settings for update using (true) with check (true);
 create policy "settings_delete" on settings for delete using (true);
 
+-- ── Enable Supabase Realtime ────────────────────────────────────────────────
+-- Enable replica identity to send full details (allows tracking inserts and updates with details)
+alter table public.participants replica identity full;
+alter table public.submissions replica identity full;
+
+-- Add tables to the Supabase Realtime publication if not already added
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (
+      select 1 from pg_publication_tables 
+      where pubname = 'supabase_realtime' and tablename = 'participants'
+    ) then
+      alter publication supabase_realtime add table public.participants;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables 
+      where pubname = 'supabase_realtime' and tablename = 'submissions'
+    ) then
+      alter publication supabase_realtime add table public.submissions;
+    end if;
+  end if;
+end $$;
+
+
 
